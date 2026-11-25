@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mekelle Smart-Suk — Inventory, Credit & Analytics</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1 id="txt-title">Mekelle Smart-Suk</h1>
+    <span id="txt-subtitle">Inventory, Credit (Asheba) & Sales Analytics</span>
+  </div>
+  <div class="header-actions">
+    <button id="lang-btn" class="btn btn-outline" onclick="toggleLanguage()">ትግርኛ / EN</button>
+    <button class="btn btn-accent" onclick="exportCSV()" id="txt-export">Export Excel (CSV)</button>
+    <button class="btn btn-secondary" onclick="resetDemoData()" id="txt-demo">Load Sample Data</button>
+  </div>
+</header>
+
+<main class="container">
+  <!-- KPI Summary Strip -->
+  <section class="kpi-grid">
+    <div class="card kpi-card">
+      <div class="kpi-label" id="txt-kpi-rev">Total Revenue</div>
+      <div class="kpi-value" id="kpi-revenue">0 ETB</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label" id="txt-kpi-prof">Total Net Profit</div>
+      <div class="kpi-value" id="kpi-profit">0 ETB</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label" id="txt-kpi-margin">Profit Margin</div>
+      <div class="kpi-value" id="kpi-margin">0%</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label" id="txt-kpi-cred">Unpaid Credit (Asheba)</div>
+      <div class="kpi-value text-danger" id="kpi-credit">0 ETB</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label" id="txt-kpi-stock">Low Stock Alerts (&lt;5)</div>
+      <div class="kpi-value text-danger" id="kpi-lowstock">0 Items</div>
+    </div>
+  </section>
+
+  <!-- Data Entry Forms -->
+  <section class="grid-2">
+    <div class="card">
+      <h2 class="card-title" id="txt-add-prod-title">1. Add or Restock Product</h2>
+      <label for="prod-name">Product Name</label>
+      <input type="text" id="prod-name" placeholder="e.g., Sugar 1kg, Teff 10kg, Oil 5L" />
+
+      <div class="form-row">
+        <div>
+          <label for="prod-cost">Buying Cost (ETB)</label>
+          <input type="number" id="prod-cost" placeholder="85" />
+        </div>
+        <div>
+          <label for="prod-price">Selling Price (ETB)</label>
+          <input type="number" id="prod-price" placeholder="100" />
+        </div>
+      </div>
+
+      <label for="prod-qty">Quantity to Add</label>
+      <input type="number" id="prod-qty" placeholder="20" />
+      <button class="btn btn-primary" onclick="addProduct()" id="txt-save-prod">Save to Inventory</button>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title" id="txt-rec-sale-title">2. Record Sale or Credit (Asheba)</h2>
+      <label for="sale-prod">Select Item</label>
+      <select id="sale-prod"></select>
+
+      <div class="form-row">
+        <div>
+          <label for="sale-qty">Quantity Sold</label>
+          <input type="number" id="sale-qty" placeholder="1" />
+        </div>
+        <div>
+          <label for="sale-type">Payment Method</label>
+          <select id="sale-type" onchange="toggleCreditFields()">
+            <option value="Cash">Cash (Paid Full)</option>
+            <option value="Telebirr">Telebirr (Paid Full)</option>
+            <option value="Credit">Credit / Asheba</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="credit-fields" class="credit-box hidden">
+        <input type="text" id="customer-name" placeholder="Customer Full Name (Required)" />
+        <input type="text" id="customer-phone" placeholder="Phone Number (e.g., 0914...)" />
+        <input type="number" id="initial-paid" placeholder="Initial Deposit Paid Now (ETB)" value="0" />
+      </div>
+
+      <button class="btn btn-primary" onclick="recordSale()" id="txt-rec-btn">Complete Transaction</button>
+    </div>
+  </section>
+
+  <!-- Analytics Visualization -->
+  <section class="grid-2">
+    <div class="card">
+      <h2 class="card-title" id="txt-chart-prod">Revenue by Product (ETB)</h2>
+      <div class="chart-wrapper"><canvas id="productChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2 class="card-title" id="txt-chart-pay">Sales Split by Payment Type</h2>
+      <div class="chart-wrapper"><canvas id="paymentChart"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Current Stock & Margin Table -->
+  <section class="card">
+    <h2 class="card-title" id="txt-inv-table">Current Stock & Unit Profit Analysis</h2>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Buy Cost</th>
+            <th>Sell Price</th>
+            <th>Unit Profit</th>
+            <th>In Stock</th>
+            <th>Stock Value</th>
+            <th>Quick Restock (+5)</th>
+          </tr>
+        </thead>
+        <tbody id="inventory-table"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Active Customer Credit (Asheba) Ledger -->
+  <section class="card">
+    <h2 class="card-title" id="txt-cred-table">Active Customer Credit (Asheba) Ledger</h2>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Phone</th>
+            <th>Item (Qty)</th>
+            <th>Total</th>
+            <th>Paid</th>
+            <th>Balance Due</th>
+            <th>Settle Balance</th>
+          </tr>
+        </thead>
+        <tbody id="credit-table"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Complete Transaction History -->
+  <section class="card">
+    <div class="table-header">
+      <h2 class="card-title" id="txt-sales-table">Transaction History</h2>
+      <select id="filter-type" onchange="renderSalesLog()" class="filter-select">
+        <option value="ALL">All Payment Methods</option>
+        <option value="Cash">Cash</option>
+        <option value="Telebirr">Telebirr</option>
+        <option value="Credit">Credit / Asheba</option>
+      </select>
+    </div>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Revenue</th>
+            <th>Profit</th>
+            <th>Method</th>
+            <th>Customer</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="sales-table"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
